@@ -49,7 +49,7 @@ import java.util.stream.IntStream;
  * de texte estigui configurat amb codificació UTF-8.
  */
 class Entrega {
-  static final String[] NOMS = {};
+  static final String[] NOMS = {"Laia Lluch Pons", "Michael James Arias Sweeney"};
 
   /*
    * Aquí teniu els exercicis del Tema 1 (Lògica).
@@ -73,13 +73,56 @@ class Entrega {
      *
      * Vegeu els tests per exemples.
      */
-    static final char CONJ = '∧';
-    static final char DISJ = '∨';
-    static final char IMPL = '→';
-    static final char NAND = '.';
+    static final char CONJ = '∧'; 
+    static final char DISJ = '∨'; 
+    static final char IMPL = '→'; 
+    static final char NAND = '.'; 
 
     static int exercici1(char[] ops, int[] vars) {
-      throw new UnsupportedOperationException("pendent");
+        int numVars = 0;
+        for (int v : vars) {
+            numVars = Math.max(v, numVars);
+        }
+        numVars++; //El nombre de variables és el major+1 perquè comença per v0
+        
+        //values contindrà els diferents valors que aniran agafant les variables
+        boolean[] values = new boolean[numVars];
+        //numCombinations són totes les combinacions de valors de les variables
+        int numCombinations = (int)Math.pow(2,numVars); 
+        //Dos booleans per saber si l'expressió pot ser vertadera, falsa o ambdues
+        boolean canBeTrue = false;
+        boolean canBeFalse = false;
+        //Recorrem totes les combinacions i es modifiquen els bits necessaris
+        //per a representar i en binari a values
+        for (int i = 0; i < numCombinations; i++) {
+            for (int j = 0; j < numVars; j++) {
+                values[j] = ((i >> j) & 1) == 1;
+            }
+            
+            boolean op1 = values[vars[0]]; //Primer operand de cada operació
+            //Bucle per a fer totes les operacions de l'expressió
+            for (int k = 0; k < ops.length; k++) {
+                boolean op2 = values[vars[k+1]]; //Segon operand de cada operació
+                switch (ops[k]) {
+                    case CONJ: op1 = op1 && op2; break;
+                    case DISJ: op1 = op1 || op2; break;
+                    case IMPL: op1 = !op1 || op2; break;
+                    case NAND: op1 = !(op1 && op2); break;
+                }
+            }
+            //Ara op1 conté el resultat de tota l'expressió per a la 
+            //combinació de valors actual. 
+            if (op1) {
+                canBeTrue = true;
+            } else {
+                canBeFalse = true;
+            }
+            if (canBeTrue && canBeFalse) {
+                return -1;
+            }
+        }
+        //Si arriba fins aquí, és tautologia o contradicció
+        return canBeTrue ? 1 : 0;
     }
 
     /*
@@ -93,7 +136,25 @@ class Entrega {
      * (∀x : P(x)) <-> (∃!x : Q(x))
      */
     static boolean exercici2(int[] universe, Predicate<Integer> p, Predicate<Integer> q) {
-      throw new UnsupportedOperationException("pendent");
+        //Primer comprovam que tot P(x) és cert dins l'univers
+        //Suposam que si i comprovam si en algun cas no es compleix
+        boolean pTrueForAllX = true;
+        for (int x : universe) {
+            if (!p.test(x)) {
+                pTrueForAllX = false;
+                break;
+            }
+        }
+        //Ara comprovam que existeixi exactament una x tal que Q(x) és cert
+        int count = 0;
+        for (int x : universe) {
+            if (q.test(x)) {
+                count++;
+            }
+        }
+        boolean qTrueOnce = count == 1;
+        
+        return pTrueForAllX == qTrueOnce;
     }
 
     static void tests() {

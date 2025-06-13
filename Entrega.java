@@ -208,7 +208,30 @@ class Entrega {
      * Pista: Cercau informació sobre els nombres de Stirling.
      */
     static int exercici1(int[] a) {
-      throw new UnsupportedOperationException("pendent");
+        /*Els nombres de Stirling de segona espècie (S(n,k)) compten les maneres de dividir un conjunt de n
+        elements en k subconjunts. Llavors, el total de particions del conjunt seria la suma de
+        tots aquests nombres per tots els valors de k entre 1 i n. Això dona el nombre de Bell (B(n)).
+        */
+        //Com que sen's indica que els valors no estaran repetits dins `a`, el total d'elements diferents és a.length.
+        int numElements = a.length;
+        int[][] numStirling = new int[numElements + 1][numElements + 1];
+        numStirling[0][0] = 1; //S(0,0) = 1. Mai serà buit i podríem començar directament amb 1 element,
+                               //però ens ha semblat més clar fer l'algoritme sencer
+        
+        //Omplim l'array segons S(n,k)=S(n-1,k-1)+kS(n-1,k) 
+        for (int n = 1; n <= numElements; n++) {
+            for (int k = 1; k <= numElements; k++) {
+                numStirling[n][k] = numStirling[n-1][k-1] + k * numStirling[n-1][k];
+            }
+        }
+        
+        //Per a calcular B(n), feim el sumatori de S(n,k) amb k de 1 a n (el nombre d'elements total)
+        int numBellN = 0;
+        for (int k = 0; k <= numElements; k++) {
+            numBellN += numStirling[numElements][k];
+        }
+        
+        return numBellN;
     }
 
     /*
@@ -219,7 +242,56 @@ class Entrega {
      * Si no existeix, retornau -1.
      */
     static int exercici2(int[] a, int[][] rel) {
-      throw new UnsupportedOperationException("pendent");
+        /*Com que les clausures reflexiva i transitiva sempre existeixen, si no són ja dins de
+        la relació rel, les hem d'afegir (a la clausura). Un cop es té això, s'ha de comprovar
+        si aquesta pot ser antisimètrica: si aRb i bRa, llavors a=b. 
+        */
+        //Com que anirem afegint elements, convertim la relació inicial en un ArrayList per a
+        //fer-la de mida dinàmica. 
+        List<int[]> clausura = new ArrayList<>(Arrays.asList(rel));
+        
+        //Primer afegim la relació reflexiva (x,x) si no hi és ja a rel
+        for (int x : a) {
+            if (!contains(clausura, x, x)) {
+                clausura.add(new int[] {x,x});
+            }
+        }
+        
+        //Ara afegim la relació transitiva. Com que cada cop que s'afegeix una parella d'elements
+        //hi pot faltar una relació, utilitzarem el booleà added per a controlar-ho.
+        boolean added = true;
+        while (added) {
+            added = false;
+            //El següent ArrayList guardarà les relacions que falten dins de la llista original
+            //per a tenir la relació transitiva. 
+            List<int[]> missingRels = new ArrayList<>();
+            for (int[] r1 : clausura) {
+                for (int[] r2 : clausura) {
+                    //Compara el segon element de la primera relació amb el primer de la segona
+                    if (r1[1] == r2[0]) {
+                        //Si són iguals i la relació entre ells no està ni a clausura ni a les que
+                        //falten per afegir en aquesta tanda, s'afegeixen i es marca el canvi a added
+                        if (!contains(clausura, r1[0], r2[1]) && !contains(missingRels, r1[0], r2[1])) {
+                            missingRels.add(new int[] {r1[0], r2[1]});
+                            added = true;
+                        }
+                    }
+                }
+            }
+            //Afegim totes les faltants a clausura i, si s'han afegit relacions, tornam a executar el bucle
+            clausura.addAll(missingRels);
+        }
+        
+        //Només queda comprovar si la clausura resultant és antisimètrica: per cada parell d'elements, si
+        //aquests són diferents i existeix la parella inversa, la clausura no serà antisimètrica. 
+        for (int[] r : clausura) {
+            if ((r[0] != r[1]) && contains(clausura, r[1], r[0])) {
+                return -1;
+            }
+        }
+        
+        //Si arribam aquí, és ordre parcial. Falta calcular el cardinal, que és la mida de la llista
+        return clausura.size();
     }
 
     /*
@@ -230,7 +302,62 @@ class Entrega {
      * - null en qualsevol altre cas
      */
     static Integer exercici3(int[] a, int[][] rel, int[] x, boolean op) {
-      throw new UnsupportedOperationException("pendent");
+        //Guardarem els elements que poden ser ínfims o suprems dins de la llista
+        List<Integer> possibleElements = new ArrayList<>();
+        if (!op) {
+            //Cercam l'ínfim: el major element de a que és <= que tots els elements de x
+            for (int b : a) {
+                boolean isInfim = true;
+                for (int c : x) {
+                    //Si b > c, llavors b no pot ser ínfim
+                    if (!contains(rel, b, c)) {
+                        isInfim = false;
+                        break;
+                    }
+                }
+                if (isInfim) {
+                    possibleElements.add(b);
+                }
+            }
+            if (possibleElements.isEmpty()) {
+                return null; //No hi ha ínfim
+            } else {
+                int infim = possibleElements.get(0);
+                for (int i = 1; i < possibleElements.size(); i++) {
+                    if (possibleElements.get(i) < infim) {
+                        infim = possibleElements.get(i);
+                    }
+                }
+                return infim;
+            }
+            
+        } else {
+            //Cercam el suprem: el menor element de a que és >= que tots els elements de x
+            for (int b : a) {
+                boolean isSuprem = true;
+                for (int c : x) {
+                    //Si c > b, b no podrà ser suprem
+                    if (!contains(rel, c, b)) {
+                        isSuprem = false;
+                        break;
+                    }
+                }
+                if (isSuprem) {
+                    possibleElements.add(b);
+                }
+            }
+            if (possibleElements.isEmpty()) {
+                return null; //No hi ha suprem
+            } else {
+                int suprem = possibleElements.get(0);
+                for (int i = 1; i < possibleElements.size(); i++) {
+                    if (possibleElements.get(i) > suprem) {
+                        suprem = possibleElements.get(i);
+                    }
+                }
+                return suprem;
+            }
+        }
     }
 
     /*
@@ -241,7 +368,85 @@ class Entrega {
      *  - Sinó, null.
      */
     static int[][] exercici4(int[] a, int[] b, Function<Integer, Integer> f) {
-      throw new UnsupportedOperationException("pendent");
+        /*El graf de f és (x, f(x)). Com que hem de donar el graf de la inversa, ho feim
+        directament com (f(x),x), amb x pertanyent a a.
+        */
+        int[][] grafInversa = new int[a.length][2];
+        //Omplim el graf de la inversa
+        for(int i = 0; i < a.length; i++) {
+            grafInversa[i] = new int[] {f.apply(a[i]),a[i]};
+        }
+        
+        //Comprovam si és injectiva (no existeixen imatges repetides)
+        boolean isInjectiva = true;
+        for (int i = 0; i < grafInversa.length; i++) {
+            //Comparam cada element amb els següents. Si se'n troba un d'igual, no és injectiva
+            for (int j = i+1; j < grafInversa.length; j++) {
+                if (grafInversa[i][0] == grafInversa[j][0]) {
+                    isInjectiva = false;
+                    break;
+                }
+            }
+            if (!isInjectiva) {
+                break;
+            }
+        }
+        
+        //Comprovam si és exhaustiva (tot element de b és imatge)
+        boolean isExhaustiva = true;
+        for (int y : b) {
+            boolean found = false;
+            for (int[] i : grafInversa) {
+                if (i[0] == y) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                isExhaustiva = false;
+                break;
+            }
+        }
+        
+        if (isInjectiva && isExhaustiva) {
+            return grafInversa;
+        } else if (isInjectiva) {
+            return grafInversa; //La inversa per l'esquerra és la mateixa
+        } else if (isExhaustiva) {
+            //Cercam la inversa per la dreta
+            int[][] inversaDreta = new int[b.length][2];
+            for (int i = 0; i < b.length; i++) {
+                for (int x : a) {
+                    if (f.apply(x) == b[i]) {
+                        inversaDreta[i] = new int[] {b[i], x};
+                        break;
+                    }
+                }
+            }
+            return inversaDreta;
+        } else {
+            return null; //No existeix cap inversa
+        }
+    }
+    
+    //Mètode auxiliar que retorna true si la parella ordenada es troba dins de la llista
+    static boolean contains(List<int[]> list, int a, int b) {
+        for (int[] r : list) {
+            if (r[0] == a && r[1] == b) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    //Còpia del mètode anterior adaptat a un array bidimensional
+    static boolean contains(int[][] array, int a, int b) {
+        for (int[] r : array) {
+            if (r[0] == a && r[1] == b) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /*

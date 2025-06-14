@@ -371,17 +371,22 @@ class Entrega {
         /*El graf de f és (x, f(x)). Com que hem de donar el graf de la inversa, ho feim
         directament com (f(x),x), amb x pertanyent a a.
         */
-        int[][] grafInversa = new int[a.length][2];
-        //Omplim el graf de la inversa
+        //La mida serà la major entre el domini i el codomini de la inversa original,
+        //ja que la funció inversa ha d'anar de B -> A, però ha de poder contenir tots
+        //els elements segons la inversa que haguem de retornar i per a fer les comprovacions
+        //correctament (imatges repetides, etc.).
+        int[][] grafInversa = new int[Math.max(a.length, b.length)][2];
+        //Omplim el graf de la inversa segons els valors del domini de la funció original.
         for(int i = 0; i < a.length; i++) {
             grafInversa[i] = new int[] {f.apply(a[i]),a[i]};
         }
         
         //Comprovam si és injectiva (no existeixen imatges repetides)
+        //Utilitzam a.length perquè això ens dona el total d'imatges que té la funcio original
         boolean isInjectiva = true;
-        for (int i = 0; i < grafInversa.length; i++) {
+        for (int i = 0; i < a.length; i++) {
             //Comparam cada element amb els següents. Si se'n troba un d'igual, no és injectiva
-            for (int j = i+1; j < grafInversa.length; j++) {
+            for (int j = i+1; j < a.length; j++) {
                 if (grafInversa[i][0] == grafInversa[j][0]) {
                     isInjectiva = false;
                     break;
@@ -411,7 +416,22 @@ class Entrega {
         if (isInjectiva && isExhaustiva) {
             return grafInversa;
         } else if (isInjectiva) {
-            return grafInversa; //La inversa per l'esquerra és la mateixa
+            //Com que no tot element de b es troba dins de la inversa que tenim (no és exhaustiva),
+            //els hem d'afegir i assignar una antiimatge per a retornar la funció de b -> a
+            int idx = a.length;
+            for (int y : b) {
+                boolean found = false;
+                for (int[] i : grafInversa) {
+                    if (i[0] == y) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    grafInversa[idx++] = new int[] {y,a[0]};
+                }
+            }
+            return grafInversa; 
         } else if (isExhaustiva) {
             //Cercam la inversa per la dreta
             int[][] inversaDreta = new int[b.length][2];
@@ -582,7 +602,16 @@ class Entrega {
      * Determinau si el graf `g` (no dirigit) té cicles.
      */
     static boolean exercici1(int[][] g) {
-      throw new UnsupportedOperationException("pendent");
+        boolean[] visited = new boolean[g.length];
+        //Recorrem tots els vèrtexs no visitats i comprovam si són part d'un cicle
+        for (int i = 0; i < g.length; i++) {
+            if (!visited[i]) {
+                if (cicleFound(g, visited, i, -1)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /*
@@ -590,7 +619,33 @@ class Entrega {
      * 10.
      */
     static boolean exercici2(int[][] g1, int[][] g2) {
-      throw new UnsupportedOperationException("pendent");
+        //Per a què dos grafs siguin isomorfs, han de tenir el mateix nombre de nodes i arestes.
+        //El nombre de nodes és el nombre de files del graf
+        if (g1.length != g2.length) {
+            return false;
+        }
+        //El nombre d'arestes és la suma de la longitud de cada fila del graf dividit entre 2
+        //perquè no és dirigit
+        if (countArestes(g1) != countArestes(g2)) {
+            return false;
+        }
+        
+        //A partir d'aquí, els dos grafs tenen el mateix ordre i la mateixa mida
+        //Per a comprovar si són isomorfs, anam provant permutacions del graf i comprovam
+        //si alguna d'aquestes manté les adjacències dels nodes del primer graf
+        int[] perm = new int[g1.length];
+        for (int i = 0; i < g1.length; i++) {
+            perm[i] = i;
+        }
+        
+        while (nextPerm(perm)) {
+            if (isIsomorf(g1, g2, perm)) {
+                //Ens basta trobar una permutació de nodes que compleixi el criteri
+                return true;
+            }
+        }
+        //Si arriba fins aquí, és perquè no són isomorfs
+        return false;
     }
 
     /*
@@ -601,7 +656,34 @@ class Entrega {
      * vèrtex.
      */
     static int[] exercici3(int[][] g, int r) {
-      throw new UnsupportedOperationException("pendent");
+        //Per a comprovar que és un arbre, hem de comprovar que |E| = |V| - 1
+        if(countArestes(g) != (g.length - 1)) {
+            return null;
+        }
+        //Per a ser arbre, també ha de ser connex i no pot tenir cicles. Reutilitzarem
+        //el mètode usar a l'exercici 1 per a cercar cicles a partir del node 0. 
+        boolean[] visited = new boolean[g.length];
+        if (cicleFound(g, visited, 0, -1)) {
+            return null;
+        } 
+        //Si no s'han visitat tots els nodes, el graf no és connex i, per tant, no és arbre
+        for (boolean v : visited) {
+            if (!v) {
+                return null;
+            }
+        }
+        
+        //Per als arbres, cercam el recorregut en postordre
+        Arrays.fill(visited, false); //Reiniciam les visites
+        List<Integer> postordre = new ArrayList<>();
+        findPostordre(g, visited, postordre, r, -1);
+        //Pasam l'ArrayList a array
+        int[] postordreArr = new int[postordre.size()];
+        for (int i = 0; i < postordreArr.length; i++) {
+            postordreArr[i] = postordre.get(i);
+        }
+        return postordreArr;
+        
     }
 
     /*
@@ -629,7 +711,191 @@ class Entrega {
      * Si és impossible, retornau -1.
      */
     static int exercici4(char[][] mapa) {
-      throw new UnsupportedOperationException("pendent");
+        int rows = mapa.length;
+        int columns = mapa[0].length;
+        
+        //Començam cercant la posició de 'O'
+        int posOX = 0;
+        int posOY = 0;
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                if (mapa[i][j] == 'O') {
+                    posOX = i;
+                    posOY = j;
+                } 
+            }
+        }
+        
+        //Utilitzarem l'algorisme de Dijkstra per a trobar el camí més curt
+        //Inicialitzam les distàncies entre nodes amb el valor màxim
+        int[][] distances = new int[rows][columns];
+        for (int i = 0; i < rows; i++) {
+            Arrays.fill(distances[i], Integer.MAX_VALUE);
+        }
+        //Modificam la distància del node 'O' a 0
+        distances[posOX][posOY] = 0;
+        
+        //Guardarem els nodes que es poden visitar des de l'origen dins d'una llista
+        List<int[]> notExplored = new ArrayList<>();
+        notExplored.add(new int[]{posOX, posOY});
+        
+        //Començam el recorregut fins que no quedin pendents o trobem 'D'
+        while (!notExplored.isEmpty()) {
+            int minDistance = Integer.MAX_VALUE;
+            int minIdx = -1;
+            for (int i = 0; i < notExplored.size(); i++) {
+                int[] pos = notExplored.get(i);
+                if (distances[pos[0]][pos[1]] < minDistance) {
+                    minDistance = distances[pos[0]][pos[1]];
+                    minIdx = i;
+                }
+            }
+            
+            //Quan hem trobat el node amb distància mínima, hem de comprovar els adjacents
+            int[] minPos = notExplored.remove(minIdx);
+            int x = minPos[0];
+            int y = minPos[1];
+            
+            //Si aquest node és 'D' ja, retornam la distància
+            if (mapa[x][y] == 'D') {
+                return distances[x][y];
+            }
+            
+            //Comprovam el node superior
+            if (((x-1) >= 0) && (mapa[x-1][y] != '#')) {
+                //Comprovam que realment no és un graf amb pesos, utilitzem pes = 1. 
+                //Comparam la distància fins al nou "node" amb la distància anterior
+                //per a assegurar el camí més curt i l'afegim als nodes pendents d'explorar
+                if ((distances[x][y] + 1) < distances[x-1][y]) {
+                    distances[x-1][y] = distances[x][y] + 1;
+                    notExplored.add(new int[]{x-1, y});
+                }
+            }
+            //Comprovam el node inferior
+            if (((x+1) < rows) && (mapa[x+1][y] != '#')) {
+                if ((distances[x][y] + 1) < distances[x+1][y]) {
+                    distances[x+1][y] = distances[x][y] + 1;
+                    notExplored.add(new int[]{x+1, y});
+                }
+            }
+            //Comprovam el node a l'esquerra
+            if (((y-1) >= 0) && (mapa[x][y-1] != '#')) {
+                if ((distances[x][y] + 1) < distances[x][y-1]) {
+                    distances[x][y-1] = distances[x][y] + 1;
+                    notExplored.add(new int[]{x, y-1});
+                }
+            }
+            //Comprovam el node a la dreta
+            if (((y+1) < columns) && (mapa[x][y+1] != '#')) {
+                if ((distances[x][y] + 1) < distances[x][y+1]) {
+                    distances[x][y+1] = distances[x][y] + 1;
+                    notExplored.add(new int[]{x, y+1});
+                }
+            }
+        }
+        //Si arriba fins aquí, és perquè no s'ha trobat cap camí
+        return -1;
+    }
+    
+    //Mètode recursiu per a cercar si el graf té un cicle
+    static boolean cicleFound(int[][] graph, boolean[] visited, int currentV, int previousV) {
+        visited[currentV] = true;
+        for (int adjacentV : graph[currentV]) {
+            if (!visited[adjacentV]) {
+                //Utilitzam el mètode recursivament passant el node actual com a node anterior de l'adjacent
+                if (cicleFound(graph, visited, adjacentV, currentV)) {
+                    return true; 
+                    //Es va propagant el valor true cap amunt fins a tornar al mètode de l'exercici
+                }
+            } else if (adjacentV != previousV) {
+                //Trobam un node adjacent ja visitat que no és l'anterior de l'actual,
+                //significa que hi ha un altre camí que duu a un node ja visitat i, per tant,
+                //el graf té cicle.
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    //Mètode per a comptar les arestes d'un graf no dirigit
+    static int countArestes(int[][] graph) {
+        int e = 0;
+        for (int[] adjacents : graph) {
+            e += adjacents.length;
+        }
+        return e/2; //Com que no és dirigit, cada aresta es compta 2 vegades
+    }
+    
+    //Mètode per a generar la següent permutació d'un int[]
+    static boolean nextPerm(int[] perm) {
+        //Comprovam si ja és la darrera
+        int i = 0, j = perm.length - 1;
+        while ((i < perm.length) && (perm[i] == j)) { 
+            i++;
+            j--;
+        }
+        if (i == perm.length) {
+            return false; //És la darrera permutació
+        }
+        
+        //Cercam el primer element des de la dreta que sigui menor que el següent
+        i = perm.length - 2;
+        while (perm[i] > perm[i + 1]) {
+            i--;
+        }
+
+        //Cercam l'element més petit a la dreta de i que sigui més gran que perm[i]
+        j = perm.length - 1;
+        while (perm[j] < perm[i]) {
+            j--;
+        }
+
+        //Intercanviam els valors i i j
+        int change = perm[i];
+        perm[i] = perm[j];
+        perm[j] = change;
+
+        //Reorganitzam els elements a la dreta de i en ordre ascendent
+        for (i++, j = perm.length - 1; i < j; i++, j--) {
+            change = perm[i];
+            perm[i] = perm[j];
+            perm[j] = change;
+        }
+        return true;
+    }
+    
+    static boolean isIsomorf(int[][] g1, int[][] g2, int[] perm) {
+        //Hem de comprovar que els nodes adjacents es mantenen en el segon graf
+        for (int i = 0; i < g1.length; i++) {
+            int[] originalAjacents = g1[i];
+            int[] newAdjacents = new int[originalAjacents.length];
+            //Aplicam la permutació als nodes adjacents del primer graf
+            for (int j = 0; j < originalAjacents.length; j++) {
+                newAdjacents[j] = perm[originalAjacents[j]];
+            }
+            Arrays.sort(newAdjacents);
+            
+            int[] correctAdjacents = Arrays.copyOf(g2[perm[i]], g2[perm[i]].length);
+            Arrays.sort(correctAdjacents);
+            
+            //Llavors, si els nodes adjacents nous no coincideixen amb els nodes adjacents
+            //del graf 2, aquesta permutació no fa que els adjacents es mantinguin.
+            if (!Arrays.equals(newAdjacents, correctAdjacents)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    //Mètode per a recórrer un arbre en postordre
+    static void findPostordre(int[][] graph, boolean[] visited, List<Integer> postordre, int currentV, int previousV) {
+        visited[currentV] = true;
+        for (int adjacentV : graph[currentV]) {
+            if (!visited[adjacentV]) {
+                findPostordre(graph, visited, postordre, adjacentV, currentV);
+            }
+        }
+        postordre.add(currentV);
     }
 
     /*
@@ -709,7 +975,22 @@ class Entrega {
      * Pista: https://en.wikipedia.org/wiki/Exponentiation_by_squaring
      */
     static int[] exercici1(String msg, int n, int e) {
-      throw new UnsupportedOperationException("pendent");
+        //Primer aconseguim els codis ASCII de l'String
+        byte[] asciiString = msg.getBytes();
+        //Com que seràn blocs de longitud 2, retornarem un array amb la meitat d'elements
+        int[] encrypted = new int[msg.length()/2];
+        for (int i = 0; i < encrypted.length; i++) {
+            //Agafem els bytes a encriptar
+            int ascii1 = asciiString[2*i];
+            int ascii2 = asciiString[2*i+1];
+            //Combinam els dos caràcters en un bloc. Com que els caràcters van de 32
+            //a 127, multiplicam el primer per 128 (igual que a classe per *26 quan
+            //utilitzàvem l'alfabet amb les lletres de 0 a 25)
+            int block = (ascii1*128) | ascii2;
+            //Encriptam el bloc
+            encrypted[i] = RSA(block, n, e);
+        }
+        return encrypted;
     }
 
     /*
@@ -730,6 +1011,23 @@ class Entrega {
       throw new UnsupportedOperationException("pendent");
     }
 
+    //Mètode per a xifrar un bloc amb RSA
+    static int RSA(int block, int n, int exp) {
+        int encryptedBlock = 1;
+        block = block % n;
+        
+        while (exp > 0) {
+            //Si l'exponent és senar
+            if ((exp%2) != 0) {
+                encryptedBlock = (encryptedBlock*block) % n;
+            }
+            //Si l'exponent és parell, base = (x*x) i exponent = exponent/2
+            block = (block*block) % n;
+            exp = exp / 2;
+        }
+        return encryptedBlock;
+    }
+    
     static void tests() {
       // Exercici 1
       // Codificar i encriptar

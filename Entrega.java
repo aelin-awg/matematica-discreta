@@ -392,13 +392,14 @@ class Entrega {
             grafInversa[i] = new int[]{f.apply(a[i]), a[i]};
         }
 
-        //Comprovam si és injectiva (no existeixen imatges repetides)
+        //Comprovam si és injectiva (no existeixen imatges repetides per a valors de a diferents)
         //Utilitzam a.length perquè això ens dona el total d'imatges que té la funcio original
         boolean isInjectiva = true;
         for (int i = 0; i < a.length; i++) {
-            //Comparam cada element amb els següents. Si se'n troba un d'igual, no és injectiva
+            //Comparam cada element amb els següents. Si se'n troba un d'igual amb antiimatge
+            //diferent, no és injectiva
             for (int j = i + 1; j < a.length; j++) {
-                if (grafInversa[i][0] == grafInversa[j][0]) {
+                if ((grafInversa[i][0] == grafInversa[j][0]) && (grafInversa[i][1] != grafInversa[j][1])) {
                     isInjectiva = false;
                     break;
                 }

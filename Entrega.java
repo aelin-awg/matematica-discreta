@@ -84,25 +84,26 @@ class Entrega {
             numVars = Math.max(v, numVars);
         }
         numVars++; //El nombre de variables és el major+1 perquè comença per v0
-        
-        //values contindrà els diferents valors que aniran agafant les variables
-        boolean[] values = new boolean[numVars];
-        //numCombinations són totes les combinacions de valors de les variables
-        int numCombinations = (int)Math.pow(2,numVars); 
+
         //Dos booleans per saber si l'expressió pot ser vertadera, falsa o ambdues
         boolean canBeTrue = false;
         boolean canBeFalse = false;
-        //Recorrem totes les combinacions i es modifiquen els bits necessaris
-        //per a representar i en binari a values
+
+        //truthTable contindrà els diferents valors de veritat que aniran agafant les variables
+        boolean[] truthTable = new boolean[numVars];
+        //numCombinations són totes les combinacions de valors de les variables
+        int numCombinations = (int) Math.pow(2, numVars);
+        //Recorrem totes les combinacions i modifiquem els bits necessaris
+        //per a representar i en binari a truthTable
         for (int i = 0; i < numCombinations; i++) {
             for (int j = 0; j < numVars; j++) {
-                values[j] = ((i >> j) & 1) == 1;
+                truthTable[j] = ((i >> j) & 1) == 1;
             }
-            
-            boolean op1 = values[vars[0]]; //Primer operand de cada operació
+
+            boolean op1 = truthTable[vars[0]]; //Primer operand de cada operació
             //Bucle per a fer totes les operacions de l'expressió
             for (int k = 0; k < ops.length; k++) {
-                boolean op2 = values[vars[k+1]]; //Segon operand de cada operació
+                boolean op2 = truthTable[vars[k + 1]]; //Segon operand de cada operació
                 switch (ops[k]) {
                     case CONJ: op1 = op1 && op2; break;
                     case DISJ: op1 = op1 || op2; break;
@@ -117,6 +118,7 @@ class Entrega {
             } else {
                 canBeFalse = true;
             }
+            //Si una expressió pot ser vertadera i falsa, no fa falta seguir mirant valors
             if (canBeTrue && canBeFalse) {
                 return -1;
             }
@@ -137,7 +139,7 @@ class Entrega {
      */
     static boolean exercici2(int[] universe, Predicate<Integer> p, Predicate<Integer> q) {
         //Primer comprovam que tot P(x) és cert dins l'univers
-        //Suposam que si i comprovam si en algun cas no es compleix
+        //Suposam que sí i comprovam si en algun cas no es compleix
         boolean pTrueForAllX = true;
         for (int x : universe) {
             if (!p.test(x)) {
@@ -153,7 +155,7 @@ class Entrega {
             }
         }
         boolean qTrueOnce = count == 1;
-        
+        //Si ambdós són falsos o ambdós són vertaders, la proposició és certa
         return pTrueForAllX == qTrueOnce;
     }
 
@@ -208,7 +210,8 @@ class Entrega {
      * Pista: Cercau informació sobre els nombres de Stirling.
      */
     static int exercici1(int[] a) {
-        /*Els nombres de Stirling de segona espècie (S(n,k)) compten les maneres de dividir un conjunt de n
+        /*
+        Els nombres de Stirling de segona espècie (S(n,k)) compten les maneres de dividir un conjunt de n
         elements en k subconjunts. Llavors, el total de particions del conjunt seria la suma de
         tots aquests nombres per tots els valors de k entre 1 i n. Això dona el nombre de Bell (B(n)).
         */
@@ -217,20 +220,20 @@ class Entrega {
         int[][] numStirling = new int[numElements + 1][numElements + 1];
         numStirling[0][0] = 1; //S(0,0) = 1. Mai serà buit i podríem començar directament amb 1 element,
                                //però ens ha semblat més clar fer l'algoritme sencer
-        
+
         //Omplim l'array segons S(n,k)=S(n-1,k-1)+kS(n-1,k) 
         for (int n = 1; n <= numElements; n++) {
             for (int k = 1; k <= numElements; k++) {
-                numStirling[n][k] = numStirling[n-1][k-1] + k * numStirling[n-1][k];
+                numStirling[n][k] = numStirling[n - 1][k - 1] + k * numStirling[n - 1][k];
             }
         }
-        
+
         //Per a calcular B(n), feim el sumatori de S(n,k) amb k de 1 a n (el nombre d'elements total)
         int numBellN = 0;
-        for (int k = 0; k <= numElements; k++) {
+        for (int k = 1; k <= numElements; k++) {
             numBellN += numStirling[numElements][k];
         }
-        
+
         return numBellN;
     }
 
@@ -242,37 +245,39 @@ class Entrega {
      * Si no existeix, retornau -1.
      */
     static int exercici2(int[] a, int[][] rel) {
-        /*Com que les clausures reflexiva i transitiva sempre existeixen, si no són ja dins de
+        /*
+        Com que les clausures reflexiva i transitiva sempre existeixen, si no són ja dins de
         la relació rel, les hem d'afegir (a la clausura). Un cop es té això, s'ha de comprovar
         si aquesta pot ser antisimètrica: si aRb i bRa, llavors a=b. 
         */
         //Com que anirem afegint elements, convertim la relació inicial en un ArrayList per a
         //fer-la de mida dinàmica. 
         List<int[]> clausura = new ArrayList<>(Arrays.asList(rel));
-        
+
         //Primer afegim la relació reflexiva (x,x) si no hi és ja a rel
         for (int x : a) {
             if (!contains(clausura, x, x)) {
-                clausura.add(new int[] {x,x});
+                clausura.add(new int[]{x, x});
             }
         }
-        
+
         //Ara afegim la relació transitiva. Com que cada cop que s'afegeix una parella d'elements
         //hi pot faltar una relació, utilitzarem el booleà added per a controlar-ho.
         boolean added = true;
+        //El següent ArrayList guardarà les relacions que falten dins de la llista original
+        //per a tenir la relació transitiva. 
+        List<int[]> missingRels = new ArrayList<>();
         while (added) {
             added = false;
-            //El següent ArrayList guardarà les relacions que falten dins de la llista original
-            //per a tenir la relació transitiva. 
-            List<int[]> missingRels = new ArrayList<>();
+            missingRels.clear(); //Buidam la llista de relacions per afegir
             for (int[] r1 : clausura) {
                 for (int[] r2 : clausura) {
                     //Compara el segon element de la primera relació amb el primer de la segona
                     if (r1[1] == r2[0]) {
                         //Si són iguals i la relació entre ells no està ni a clausura ni a les que
-                        //falten per afegir en aquesta tanda, s'afegeixen i es marca el canvi a added
+                        //falten per afegir en aquesta tanda, s'afegeix i es marca el canvi a added
                         if (!contains(clausura, r1[0], r2[1]) && !contains(missingRels, r1[0], r2[1])) {
-                            missingRels.add(new int[] {r1[0], r2[1]});
+                            missingRels.add(new int[]{r1[0], r2[1]});
                             added = true;
                         }
                     }
@@ -281,7 +286,7 @@ class Entrega {
             //Afegim totes les faltants a clausura i, si s'han afegit relacions, tornam a executar el bucle
             clausura.addAll(missingRels);
         }
-        
+
         //Només queda comprovar si la clausura resultant és antisimètrica: per cada parell d'elements, si
         //aquests són diferents i existeix la parella inversa, la clausura no serà antisimètrica. 
         for (int[] r : clausura) {
@@ -289,7 +294,7 @@ class Entrega {
                 return -1;
             }
         }
-        
+
         //Si arribam aquí, és ordre parcial. Falta calcular el cardinal, que és la mida de la llista
         return clausura.size();
     }
@@ -302,57 +307,62 @@ class Entrega {
      * - null en qualsevol altre cas
      */
     static Integer exercici3(int[] a, int[][] rel, int[] x, boolean op) {
-        //Guardarem els elements que poden ser ínfims o suprems dins de la llista
-        List<Integer> possibleElements = new ArrayList<>();
+        //Guardarem els elements que poden ser ínfims o suprems dins de la llista, és a dit
+        //les fites inferiors o superiors segons el valor de op.
+        List<Integer> fites = new ArrayList<>();
         if (!op) {
             //Cercam l'ínfim: el major element de a que és <= que tots els elements de x
+            //Primer trobam les fites inferiors. 
             for (int b : a) {
-                boolean isInfim = true;
+                boolean isFitaInferior = true;
                 for (int c : x) {
                     //Si b > c, llavors b no pot ser ínfim
                     if (!contains(rel, b, c)) {
-                        isInfim = false;
+                        isFitaInferior = false;
                         break;
                     }
                 }
-                if (isInfim) {
-                    possibleElements.add(b);
+                if (isFitaInferior) {
+                    fites.add(b);
                 }
             }
-            if (possibleElements.isEmpty()) {
+            if (fites.isEmpty()) {
                 return null; //No hi ha ínfim
             } else {
-                int infim = possibleElements.get(0);
-                for (int i = 1; i < possibleElements.size(); i++) {
-                    if (possibleElements.get(i) < infim) {
-                        infim = possibleElements.get(i);
+                //L'ínfim serà el valor major d'entre tots els valors de la fita inferior
+                int infim = fites.get(0);
+                for (int i = 1; i < fites.size(); i++) {
+                    if (fites.get(i) > infim) {
+                        infim = fites.get(i);
                     }
                 }
                 return infim;
             }
-            
+
         } else {
             //Cercam el suprem: el menor element de a que és >= que tots els elements de x
+            //Primer trobam les fites superiors.
             for (int b : a) {
-                boolean isSuprem = true;
+                boolean isFitaSuperior = true;
                 for (int c : x) {
                     //Si c > b, b no podrà ser suprem
                     if (!contains(rel, c, b)) {
-                        isSuprem = false;
+                        isFitaSuperior = false;
                         break;
                     }
                 }
-                if (isSuprem) {
-                    possibleElements.add(b);
+                if (isFitaSuperior) {
+                    fites.add(b);
                 }
             }
-            if (possibleElements.isEmpty()) {
+            if (fites.isEmpty()) {
                 return null; //No hi ha suprem
             } else {
-                int suprem = possibleElements.get(0);
-                for (int i = 1; i < possibleElements.size(); i++) {
-                    if (possibleElements.get(i) > suprem) {
-                        suprem = possibleElements.get(i);
+                //El suprem és el menor d'entre els elements de la fita superior
+                int suprem = fites.get(0);
+                for (int i = 1; i < fites.size(); i++) {
+                    if (fites.get(i) < suprem) {
+                        suprem = fites.get(i);
                     }
                 }
                 return suprem;
@@ -368,25 +378,26 @@ class Entrega {
      *  - Sinó, null.
      */
     static int[][] exercici4(int[] a, int[] b, Function<Integer, Integer> f) {
-        /*El graf de f és (x, f(x)). Com que hem de donar el graf de la inversa, ho feim
+        /*
+        El graf de f és (x, f(x)). Com que hem de donar el graf de la inversa, ho feim
         directament com (f(x),x), amb x pertanyent a a.
-        */
-        //La mida serà la major entre el domini i el codomini de la inversa original,
-        //ja que la funció inversa ha d'anar de B -> A, però ha de poder contenir tots
-        //els elements segons la inversa que haguem de retornar i per a fer les comprovacions
-        //correctament (imatges repetides, etc.).
+        La mida serà la major entre el domini i el codomini de la inversa original,
+        ja que la funció inversa ha d'anar de B -> A, però ha de poder contenir tots
+        els elements segons la inversa que haguem de retornar i per a fer les comprovacions
+        correctament (imatges repetides, etc.).
+         */
         int[][] grafInversa = new int[Math.max(a.length, b.length)][2];
         //Omplim el graf de la inversa segons els valors del domini de la funció original.
-        for(int i = 0; i < a.length; i++) {
-            grafInversa[i] = new int[] {f.apply(a[i]),a[i]};
+        for (int i = 0; i < a.length; i++) {
+            grafInversa[i] = new int[]{f.apply(a[i]), a[i]};
         }
-        
+
         //Comprovam si és injectiva (no existeixen imatges repetides)
         //Utilitzam a.length perquè això ens dona el total d'imatges que té la funcio original
         boolean isInjectiva = true;
         for (int i = 0; i < a.length; i++) {
             //Comparam cada element amb els següents. Si se'n troba un d'igual, no és injectiva
-            for (int j = i+1; j < a.length; j++) {
+            for (int j = i + 1; j < a.length; j++) {
                 if (grafInversa[i][0] == grafInversa[j][0]) {
                     isInjectiva = false;
                     break;
@@ -396,7 +407,7 @@ class Entrega {
                 break;
             }
         }
-        
+
         //Comprovam si és exhaustiva (tot element de b és imatge)
         boolean isExhaustiva = true;
         for (int y : b) {
@@ -412,7 +423,7 @@ class Entrega {
                 break;
             }
         }
-        
+
         if (isInjectiva && isExhaustiva) {
             return grafInversa;
         } else if (isInjectiva) {
@@ -428,17 +439,17 @@ class Entrega {
                     }
                 }
                 if (!found) {
-                    grafInversa[idx++] = new int[] {y,a[0]};
+                    grafInversa[idx++] = new int[]{y, a[0]};
                 }
             }
-            return grafInversa; 
+            return grafInversa;
         } else if (isExhaustiva) {
             //Cercam la inversa per la dreta
             int[][] inversaDreta = new int[b.length][2];
             for (int i = 0; i < b.length; i++) {
                 for (int x : a) {
                     if (f.apply(x) == b[i]) {
-                        inversaDreta[i] = new int[] {b[i], x};
+                        inversaDreta[i] = new int[]{b[i], x};
                         break;
                     }
                 }
@@ -449,7 +460,13 @@ class Entrega {
         }
     }
     
-    //Mètode auxiliar que retorna true si la parella ordenada es troba dins de la llista
+    /**
+     * Mètode auxiliar per a cercar parelles ordenades dins d'una llista
+     * @param list llista on cercar
+     * @param a element [0]
+     * @param b element [1]
+     * @return true si la parella especificada es troba dins de la llista
+     */
     static boolean contains(List<int[]> list, int a, int b) {
         for (int[] r : list) {
             if (r[0] == a && r[1] == b) {
@@ -459,7 +476,14 @@ class Entrega {
         return false;
     }
     
-    //Còpia del mètode anterior adaptat a un array bidimensional
+    /**
+     * Mètode exactament igual a l'anterior però adaptat a un array bidimensional
+     * en vés d'una llista
+     * @param array array on cercar
+     * @param a element [0]
+     * @param b element [1]
+     * @return true si la parella especificada es troba dins de l'array
+     */
     static boolean contains(int[][] array, int a, int b) {
         for (int[] r : array) {
             if (r[0] == a && r[1] == b) {
@@ -630,14 +654,31 @@ class Entrega {
             return false;
         }
         
-        //A partir d'aquí, els dos grafs tenen el mateix ordre i la mateixa mida
-        //Per a comprovar si són isomorfs, anam provant permutacions del graf i comprovam
-        //si alguna d'aquestes manté les adjacències dels nodes del primer graf
+        //Un altre tret dels grafs isomorfs és que tenen el mateix nombre de vèrtexs 
+        //amb grau igual per a poder mantenir les adjacències entre nodes.
+        int[] grausG1 = new int[g1.length];
+        int[] grausG2 = new int[g1.length];
+        for (int i = 0; i < g1.length; i++) {
+            grausG1[i] = g1[i].length;
+            grausG2[i] = g2[i].length;
+        }
+        Arrays.sort(grausG1);
+        Arrays.sort(grausG2);
+        if (!Arrays.equals(grausG1, grausG2)) {
+            return false;
+        }
+        
+        /*  
+        A partir d'aquí, els dos grafs tenen el mateix ordre, la mateixa mida i el 
+        mateix nombre de nodes amb grau igual. 
+        Per a comprovar si són isomorfs, anam provant permutacions del graf i comprovam
+        si alguna d'aquestes manté les adjacències dels nodes del primer graf
+        */
         int[] perm = new int[g1.length];
         for (int i = 0; i < g1.length; i++) {
             perm[i] = i;
         }
-        
+
         while (nextPerm(perm)) {
             if (isIsomorf(g1, g2, perm)) {
                 //Ens basta trobar una permutació de nodes que compleixi el criteri
@@ -657,7 +698,7 @@ class Entrega {
      */
     static int[] exercici3(int[][] g, int r) {
         //Per a comprovar que és un arbre, hem de comprovar que |E| = |V| - 1
-        if(countArestes(g) != (g.length - 1)) {
+        if (countArestes(g) != (g.length - 1)) {
             return null;
         }
         //Per a ser arbre, també ha de ser connex i no pot tenir cicles. Reutilitzarem
@@ -665,14 +706,14 @@ class Entrega {
         boolean[] visited = new boolean[g.length];
         if (cicleFound(g, visited, 0, -1)) {
             return null;
-        } 
+        }
         //Si no s'han visitat tots els nodes, el graf no és connex i, per tant, no és arbre
         for (boolean v : visited) {
             if (!v) {
                 return null;
             }
         }
-        
+
         //Per als arbres, cercam el recorregut en postordre
         Arrays.fill(visited, false); //Reiniciam les visites
         List<Integer> postordre = new ArrayList<>();
@@ -683,7 +724,6 @@ class Entrega {
             postordreArr[i] = postordre.get(i);
         }
         return postordreArr;
-        
     }
 
     /*
@@ -713,7 +753,7 @@ class Entrega {
     static int exercici4(char[][] mapa) {
         int rows = mapa.length;
         int columns = mapa[0].length;
-        
+
         //Començam cercant la posició de 'O'
         int posOX = 0;
         int posOY = 0;
@@ -722,10 +762,10 @@ class Entrega {
                 if (mapa[i][j] == 'O') {
                     posOX = i;
                     posOY = j;
-                } 
+                }
             }
         }
-        
+
         //Utilitzarem l'algorisme de Dijkstra per a trobar el camí més curt
         //Inicialitzam les distàncies entre nodes amb el valor màxim
         int[][] distances = new int[rows][columns];
@@ -734,11 +774,11 @@ class Entrega {
         }
         //Modificam la distància del node 'O' a 0
         distances[posOX][posOY] = 0;
-        
+
         //Guardarem els nodes que es poden visitar des de l'origen dins d'una llista
         List<int[]> notExplored = new ArrayList<>();
         notExplored.add(new int[]{posOX, posOY});
-        
+
         //Començam el recorregut fins que no quedin pendents o trobem 'D'
         while (!notExplored.isEmpty()) {
             int minDistance = Integer.MAX_VALUE;
@@ -750,46 +790,46 @@ class Entrega {
                     minIdx = i;
                 }
             }
-            
+
             //Quan hem trobat el node amb distància mínima, hem de comprovar els adjacents
             int[] minPos = notExplored.remove(minIdx);
             int x = minPos[0];
             int y = minPos[1];
-            
+
             //Si aquest node és 'D' ja, retornam la distància
             if (mapa[x][y] == 'D') {
                 return distances[x][y];
             }
-            
+
             //Comprovam el node superior
-            if (((x-1) >= 0) && (mapa[x-1][y] != '#')) {
+            if (((x - 1) >= 0) && (mapa[x - 1][y] != '#')) {
                 //Comprovam que realment no és un graf amb pesos, utilitzem pes = 1. 
                 //Comparam la distància fins al nou "node" amb la distància anterior
                 //per a assegurar el camí més curt i l'afegim als nodes pendents d'explorar
-                if ((distances[x][y] + 1) < distances[x-1][y]) {
-                    distances[x-1][y] = distances[x][y] + 1;
-                    notExplored.add(new int[]{x-1, y});
+                if ((distances[x][y] + 1) < distances[x - 1][y]) {
+                    distances[x - 1][y] = distances[x][y] + 1;
+                    notExplored.add(new int[]{x - 1, y});
                 }
             }
             //Comprovam el node inferior
-            if (((x+1) < rows) && (mapa[x+1][y] != '#')) {
-                if ((distances[x][y] + 1) < distances[x+1][y]) {
-                    distances[x+1][y] = distances[x][y] + 1;
-                    notExplored.add(new int[]{x+1, y});
+            if (((x + 1) < rows) && (mapa[x + 1][y] != '#')) {
+                if ((distances[x][y] + 1) < distances[x + 1][y]) {
+                    distances[x + 1][y] = distances[x][y] + 1;
+                    notExplored.add(new int[]{x + 1, y});
                 }
             }
             //Comprovam el node a l'esquerra
-            if (((y-1) >= 0) && (mapa[x][y-1] != '#')) {
-                if ((distances[x][y] + 1) < distances[x][y-1]) {
-                    distances[x][y-1] = distances[x][y] + 1;
-                    notExplored.add(new int[]{x, y-1});
+            if (((y - 1) >= 0) && (mapa[x][y - 1] != '#')) {
+                if ((distances[x][y] + 1) < distances[x][y - 1]) {
+                    distances[x][y - 1] = distances[x][y] + 1;
+                    notExplored.add(new int[]{x, y - 1});
                 }
             }
             //Comprovam el node a la dreta
-            if (((y+1) < columns) && (mapa[x][y+1] != '#')) {
-                if ((distances[x][y] + 1) < distances[x][y+1]) {
-                    distances[x][y+1] = distances[x][y] + 1;
-                    notExplored.add(new int[]{x, y+1});
+            if (((y + 1) < columns) && (mapa[x][y + 1] != '#')) {
+                if ((distances[x][y] + 1) < distances[x][y + 1]) {
+                    distances[x][y + 1] = distances[x][y] + 1;
+                    notExplored.add(new int[]{x, y + 1});
                 }
             }
         }
@@ -797,18 +837,25 @@ class Entrega {
         return -1;
     }
     
-    //Mètode recursiu per a cercar si el graf té un cicle
-    static boolean cicleFound(int[][] graph, boolean[] visited, int currentV, int previousV) {
+    /**
+     * Mètode recursiu per a cercar cicles dins d'un graf.
+     * @param graph graf a explorar
+     * @param visited control dels nodes ja explorats
+     * @param currentV node actual
+     * @param parentV node pare del node actual
+     * @return true si el graf conté un cicle
+     */
+    static boolean cicleFound(int[][] graph, boolean[] visited, int currentV, int parentV) {
         visited[currentV] = true;
         for (int adjacentV : graph[currentV]) {
             if (!visited[adjacentV]) {
-                //Utilitzam el mètode recursivament passant el node actual com a node anterior de l'adjacent
+                //Utilitzam el mètode recursivament passant el node actual com a node pare de l'adjacent
                 if (cicleFound(graph, visited, adjacentV, currentV)) {
-                    return true; 
+                    return true;
                     //Es va propagant el valor true cap amunt fins a tornar al mètode de l'exercici
                 }
-            } else if (adjacentV != previousV) {
-                //Trobam un node adjacent ja visitat que no és l'anterior de l'actual,
+            } else if (adjacentV != parentV) {
+                //Trobam un node adjacent ja visitat que no és el pare de l'actual,
                 //significa que hi ha un altre camí que duu a un node ja visitat i, per tant,
                 //el graf té cicle.
                 return true;
@@ -817,27 +864,36 @@ class Entrega {
         return false;
     }
     
-    //Mètode per a comptar les arestes d'un graf no dirigit
+    /**
+     * Mètode per a comptar les arestes d'un graf no dirigit. Cada aresta es compta
+     * dos cops, per això s'ha de dividir el resultat entre 2. 
+     * @param graph 
+     * @return nombre total d'arestes del graf no dirigit
+     */
     static int countArestes(int[][] graph) {
         int e = 0;
         for (int[] adjacents : graph) {
             e += adjacents.length;
         }
-        return e/2; //Com que no és dirigit, cada aresta es compta 2 vegades
+        return e/2;
     }
     
-    //Mètode per a generar la següent permutació d'un int[]
+    /**
+     * Mètode per a generar la següent permutació d'un int[]. 
+     * @param perm array amb la permutació actual
+     * @return true si s'ha generat una nova permutació, false si l'actual és la darrera
+     */
     static boolean nextPerm(int[] perm) {
         //Comprovam si ja és la darrera
         int i = 0, j = perm.length - 1;
-        while ((i < perm.length) && (perm[i] == j)) { 
+        while ((i < perm.length) && (perm[i] == j)) {
             i++;
             j--;
         }
         if (i == perm.length) {
             return false; //És la darrera permutació
         }
-        
+
         //Cercam el primer element des de la dreta que sigui menor que el següent
         i = perm.length - 2;
         while (perm[i] > perm[i + 1]) {
@@ -864,6 +920,16 @@ class Entrega {
         return true;
     }
     
+    /**
+     * Mètode per a determinar si dos grafs són isomorfs amb la permutació actual. 
+     * S'aplica la permutació al g1 mitjançant un array nou per a evitar modificar
+     * l'original i es comparen les adjacències de nodes amb el g2.
+     * @param g1 graf al qual aplicar la permutació
+     * @param g2 graf objectiu
+     * @param perm permutació actual a aplicar
+     * @return true si s'ha trobat una permutació tal que es mantenen les arestes
+     * originals al nou graf, false si aquesta permutació de nodes no compleix la condició
+     */
     static boolean isIsomorf(int[][] g1, int[][] g2, int[] perm) {
         //Hem de comprovar que els nodes adjacents es mantenen en el segon graf
         for (int i = 0; i < g1.length; i++) {
@@ -874,10 +940,10 @@ class Entrega {
                 newAdjacents[j] = perm[originalAjacents[j]];
             }
             Arrays.sort(newAdjacents);
-            
+
             int[] correctAdjacents = Arrays.copyOf(g2[perm[i]], g2[perm[i]].length);
             Arrays.sort(correctAdjacents);
-            
+
             //Llavors, si els nodes adjacents nous no coincideixen amb els nodes adjacents
             //del graf 2, aquesta permutació no fa que els adjacents es mantinguin.
             if (!Arrays.equals(newAdjacents, correctAdjacents)) {
@@ -887,8 +953,18 @@ class Entrega {
         return true;
     }
     
-    //Mètode per a recórrer un arbre en postordre
-    static void findPostordre(int[][] graph, boolean[] visited, List<Integer> postordre, int currentV, int previousV) {
+    /**
+     * Mètode per a recórrer un arbre en postordre. Es visiten els nodes fills per ordre
+     * d'esquerra a dreta i es van afegint a la llista en postordre quan ja no tenen nodes
+     * adjacents sense visitar. Llavors, el primer element afegit és el node fill més a
+     * l'esquerra de l'arbre i el darrer és l'arrel per la recursivitat del mètode. 
+     * @param graph graf que s'analitza
+     * @param visited control dels nodes ja explorats
+     * @param postordre llista amb l'ordre dels nodes demanat
+     * @param currentV node actual
+     * @param parentV node pare de l'actual
+     */
+    static void findPostordre(int[][] graph, boolean[] visited, List<Integer> postordre, int currentV, int parentV) {
         visited[currentV] = true;
         for (int adjacentV : graph[currentV]) {
             if (!visited[adjacentV]) {
@@ -978,15 +1054,15 @@ class Entrega {
         //Primer aconseguim els codis ASCII de l'String
         byte[] asciiString = msg.getBytes();
         //Com que seràn blocs de longitud 2, retornarem un array amb la meitat d'elements
-        int[] encrypted = new int[msg.length()/2];
+        int[] encrypted = new int[msg.length() / 2];
         for (int i = 0; i < encrypted.length; i++) {
             //Agafem els bytes a encriptar
-            int ascii1 = asciiString[2*i];
-            int ascii2 = asciiString[2*i+1];
+            int ascii1 = asciiString[2 * i];
+            int ascii2 = asciiString[2 * i + 1];
             //Combinam els dos caràcters en un bloc. Com que els caràcters van de 32
             //a 127, multiplicam el primer per 128 (igual que a classe per *26 quan
             //utilitzàvem l'alfabet amb les lletres de 0 a 25)
-            int block = (ascii1*128) | ascii2;
+            int block = (ascii1 * 128) + ascii2;
             //Encriptam el bloc
             encrypted[i] = RSA(block, n, e);
         }
@@ -1008,21 +1084,67 @@ class Entrega {
      * - n és major que 2¹⁴, i n² és menor que Integer.MAX_VALUE
      */
     static String exercici2(int[] m, int n, int e) {
-      throw new UnsupportedOperationException("pendent");
+        /*Primer desencriptam el missatge, necessitam trobar d = e^(-1) mod Φ(N)
+            per a poder calcular missatge ^ d mod N.
+            Sabem que N és la multiplicació de dos primers, llavors basta trobar un nombre
+            primer que divideixi a N.
+        */
+        int p = 0;
+        int q = 0;
+        for (int i = 2; i <= n; i++) {
+            if (n % i == 0) {
+                p = i;
+                q = n / i;
+                break;
+            }
+            //Si el 2 no es factor, podemos saltarnos todos los números pares
+            if (i != 2) {
+                i += 1;
+            }
+        }
+        //Φ(N) = Φ(p)*Φ(q). Com que p i q són primers, Φ(p) = p-1.
+        int phiN = (p - 1) * (q - 1);
+
+        //d = invers de e mod phiN tal que (d*e)%phiN == 1
+        int d;
+        for (d = 1; d < phiN; d++) {
+            if ((d * e) % phiN == 1) {
+                break;
+            }
+        }
+
+        //Desencriptam fent el procés invers a l'exercici anterior
+        byte[] decrypted = new byte[m.length * 2]; //Cada bloc té longitud 2
+        for (int i = 0; i < m.length; i++) {
+            int block = RSA(m[i], n, d);
+            int ascii2 = block % 128;
+            int ascii1 = ((block - ascii2) / 128) % 128;
+            decrypted[2 * i] = (byte) ascii1;
+            decrypted[2 * i + 1] = (byte) ascii2;
+        }
+        //Convertim l'array de bytes en String
+        return new String(decrypted);
     }
 
-    //Mètode per a xifrar un bloc amb RSA
+    /**
+     * Mètode per a aplicar el xifrat RSA a un bloc codificat en ASCII mitjançant
+     * els paràmetres n i e de la clau pública o n i d de la clau privada. 
+     * @param block bloc a xifrar
+     * @param n mòdul aplicat
+     * @param exp exponent a aplicar (e o d)
+     * @return el bloc encriptat
+     */
     static int RSA(int block, int n, int exp) {
         int encryptedBlock = 1;
         block = block % n;
-        
+
         while (exp > 0) {
             //Si l'exponent és senar
-            if ((exp%2) != 0) {
-                encryptedBlock = (encryptedBlock*block) % n;
+            if ((exp % 2) != 0) {
+                encryptedBlock = (encryptedBlock * block) % n;
             }
             //Si l'exponent és parell, base = (x*x) i exponent = exponent/2
-            block = (block*block) % n;
+            block = (block * block) % n;
             exp = exp / 2;
         }
         return encryptedBlock;
